@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>@тахикардия</title>
+  <link rel="icon" href="icons.png" type="image/png">
+  <style>
+    @font-face { font-family:'AN'; src:url('Arial_Narrow.ttf') format('truetype'); }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body, * { cursor: none !important; }
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#000;
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      color:#111; user-select:none;
+    }
+
+    /* ══ LOADER ══ */
+    #loader {
+      position:fixed; inset:0; z-index:9999;
+      background:#000;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:32px;
+      transition:opacity 1.4s cubic-bezier(.4,0,.2,1);
+    }
+    #loader.out { opacity:0; pointer-events:none; }
+
+    /* Stars ring */
+    #ring-wrap {
+      position:relative;
+      width:110px; height:110px;
+    }
+    .ring-layer {
+      position:absolute; inset:0;
+      animation:spinL 9s linear infinite;
+    }
+    .ring-layer.rev {
+      animation:spinR 14s linear infinite;
+    }
+    @keyframes spinL { to { transform:rotate(360deg); } }
+    @keyframes spinR { to { transform:rotate(-360deg); } }
+
+    .sd {
+      position:absolute;
+      background:#cc0000;
+      clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+    }
+
+    /* Pulsing center dot */
+    #center-dot {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      width:5px; height:5px;
+      background:#cc0000; border-radius:50%;
+      animation:dotPulse 2s ease-in-out infinite;
+    }
+    @keyframes dotPulse {
+      0%,100% { opacity:.3; transform:translate(-50%,-50%) scale(1); }
+      50%      { opacity:1;  transform:translate(-50%,-50%) scale(2.5); }
+    }
+
+    #loader-title {
+      font-size:11px; letter-spacing:6px;
+      color:rgba(255,255,255,.35);
+      text-transform:lowercase;
+      animation:titlePulse 3s ease-in-out infinite;
+    }
+    @keyframes titlePulse {
+      0%,100% { opacity:.35; letter-spacing:6px; }
+      50%      { opacity:.7;  letter-spacing:7px; }
+    }
+
+    #loader-bar-wrap {
+      width:120px; height:1px;
+      background:rgba(255,255,255,.1);
+    }
+    #loader-bar {
+      height:1px; width:0%; background:rgba(200,0,0,.7);
+      transition:width .3s ease;
+    }
+
+    /* ══ SITE ══ */
+    #site {
+      position:fixed; inset:0; background:#fff;
+      opacity:0; transition:opacity 1.4s cubic-bezier(.4,0,.2,1);
+    }
+    #site.in { opacity:1; }
+
+    /* ══ CANVAS ══ */
+    #cvs-wrap { width:100%; height:100%; touch-action:none; }
+
+    /* ══ CURSOR ══ */
+    #cursor {
+      position:fixed; pointer-events:none; z-index:9000;
+      width:6px; height:6px; background:#111; border-radius:50%;
+      transform:translate(-50%,-50%);
+      transition:width .2s,height .2s,background .2s,border .2s;
+      will-change:left,top;
+    }
+    #cursor.hover {
+      width:28px; height:28px;
+      background:transparent;
+      border:1px solid rgba(17,17,17,.45);
+    }
+    #cursor-trail {
+      position:fixed; pointer-events:none; z-index:8999;
+      width:34px; height:34px; border-radius:50%;
+      border:1px solid rgba(17,17,17,.1);
+      transform:translate(-50%,-50%);
+      will-change:left,top;
+    }
+
+    /* ══ TITLE ══ */
+    #site-title {
+      position:fixed; top:24px; left:50%;
+      transform:translateX(-50%);
+      font-size:clamp(11px,1.4vw,14px);
+      letter-spacing:4px; color:#111;
+      z-index:100; pointer-events:none;
+      white-space:nowrap; text-transform:lowercase;
+    }
+
+    /* ══ BACK ══ */
+    #back-btn {
+      position:fixed; top:24px; left:20px;
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      font-size:11px; letter-spacing:2.5px; color:#111;
+      background:none; border:none;
+      z-index:100; text-transform:uppercase;
+      opacity:0; transform:translateX(-10px);
+      transition:opacity .4s,transform .4s;
+      pointer-events:none;
+    }
+    #back-btn.show { opacity:1; transform:translateX(0); pointer-events:all; }
+    #back-btn:hover { opacity:.3; }
+
+    /* ══ FOOTER ══ */
+    #footer {
+      position:fixed; bottom:22px; left:50%;
+      transform:translateX(-50%);
+      display:flex; align-items:center; gap:18px;
+      z-index:100; white-space:nowrap;
+    }
+    #footer a, #footer button {
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      font-size:11px; letter-spacing:2.5px; color:#111;
+      text-decoration:none; text-transform:uppercase;
+      background:none; border:none;
+      padding:4px 0; transition:opacity .2s;
+    }
+    #footer a:hover,#footer button:hover { opacity:.3; }
+    .sep { font-size:9px; color:#ccc; pointer-events:none; }
+
+    /* ══ SORT * ══ */
+    #sort-btn {
+      position:fixed; right:22px; top:50%;
+      transform:translateY(-50%);
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      font-size:20px; color:#111;
+      background:none; border:none;
+      z-index:100; padding:6px; line-height:1;
+      transition:opacity .2s;
+    }
+    #sort-btn:hover { opacity:.3; }
+
+    #sort-popup {
+      position:fixed; right:56px; top:50%;
+      transform:translateY(-50%) translateX(8px) scale(.95);
+      background:#fff; border:1px solid #e8e8e8;
+      padding:4px 0; z-index:200;
+      opacity:0; pointer-events:none;
+      transition:all .26s cubic-bezier(.34,1.56,.64,1);
+      min-width:165px;
+      box-shadow:0 8px 28px rgba(0,0,0,.07);
+    }
+    #sort-popup.open {
+      opacity:1; pointer-events:all;
+      transform:translateY(-50%) translateX(0) scale(1);
+    }
+    .sopt {
+      display:block; width:100%;
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      font-size:11px; letter-spacing:2px; color:#111;
+      text-transform:uppercase;
+      background:none; border:none;
+      padding:12px 18px; text-align:left;
+      transition:background .15s;
+    }
+    .sopt:hover { background:#f5f5f5; }
+    .sopt.active { color:#bbb; }
+
+    /* ══ FAQ ══ */
+    #faq-bd { display:none; position:fixed; inset:0; z-index:200; }
+    #faq-bd.open { display:block; }
+    #faq-pop {
+      position:absolute; bottom:58px; left:50%;
+      transform:translateX(-50%) translateY(6px) scale(.95);
+      background:#fff; border:1px solid #e8e8e8;
+      padding:14px 26px;
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      font-size:13px; letter-spacing:1px; color:#111;
+      white-space:nowrap;
+      box-shadow:0 8px 28px rgba(0,0,0,.07);
+      opacity:0; pointer-events:none;
+      transition:all .26s cubic-bezier(.34,1.56,.64,1);
+    }
+    #faq-bd.open #faq-pop {
+      transform:translateX(-50%) translateY(0) scale(1);
+      opacity:1; pointer-events:all;
+    }
+
+    /* ══ HINT ══ */
+    #hint {
+      position:fixed; bottom:56px; left:50%;
+      transform:translateX(-50%);
+      font-size:9px; letter-spacing:2.5px; color:#bbb;
+      text-transform:uppercase; z-index:50;
+      pointer-events:none; white-space:nowrap;
+      opacity:1; transition:opacity 1.2s ease;
+    }
+    #hint.gone { opacity:0; }
+
+    /* ══ SCROLL MODE ══ */
+    #scroll-mode {
+      display:none; position:fixed; inset:0;
+      overflow-y:scroll; background:#fff;
+      z-index:50; padding:90px 0 100px;
+      scrollbar-width:thin; scrollbar-color:#ddd #fff;
+    }
+    #scroll-mode.active { display:block; }
+    #scroll-inner { display:flex; flex-direction:column; align-items:center; }
+    .si {
+      width:min(90vw,520px); height:auto; display:block;
+      opacity:0; transform:translateY(24px);
+      transition:opacity .75s ease,transform .75s ease;
+    }
+    .si.v { opacity:1; transform:translateY(0); }
+    .sdiv { width:min(90vw,520px); height:1px; background:#eee; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div id="ring-wrap">
+    <div id="center-dot"></div>
+    <div class="ring-layer" id="outerRing"></div>
+    <div class="ring-layer rev" id="innerRing"></div>
+  </div>
+  <div id="loader-bar-wrap"><div id="loader-bar"></div></div>
+  <div id="loader-title">@тахикардия</div>
+</div>
+
+<!-- SITE -->
+<div id="site">
+  <div id="cursor"></div>
+  <div id="cursor-trail"></div>
+
+  <span id="site-title">@тахикардия</span>
+  <button id="back-btn" onclick="resetCamera()">← back</button>
+  <div id="cvs-wrap"></div>
+
+  <div id="scroll-mode"><div id="scroll-inner"></div></div>
+
+  <div id="hint">scroll to zoom &nbsp;·&nbsp; drag to orbit &nbsp;·&nbsp; click to explore</div>
+
+  <button id="sort-btn" onclick="toggleSort(event)">&#42;</button>
+  <div id="sort-popup">
+    <button class="sopt" onclick="setMode(1)">① line</button>
+    <button class="sopt" onclick="setMode(2)">② spiral</button>
+    <button class="sopt" onclick="setMode(3)">③ reset</button>
+  </div>
+
+  <div id="footer">
+    <a href="https://www.instagram.com/kastricinaja" target="_blank" rel="noopener">ig</a>
+    <span class="sep">|</span>
+    <a href="https://t.me/tchyera" target="_blank" rel="noopener">tg</a>
+    <span class="sep">|</span>
+    <button onclick="toggleFAQ(event)">faq</button>
+  </div>
+</div>
+
+<div id="faq-bd" onclick="closeFAQ()">
+  <div id="faq-pop" onclick="event.stopPropagation()">Svalka // Visual Artist.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ══ BUILD STAR RINGS ══ */
+(function(){
+  function makeStars(el, N, R, size){
+    for(let i=0;i<N;i++){
+      const a=(i/N)*Math.PI*2 - Math.PI/2;
+      const cx=R, cy=R; // center of container
+      const s=document.createElement('div');
+      s.className='sd';
+      s.style.cssText=`width:${size}px;height:${size}px;left:${cx+R*Math.cos(a)-size/2}px;top:${cy+R*Math.sin(a)-size/2}px`;
+      el.appendChild(s);
+    }
+  }
+  makeStars(document.getElementById('outerRing'), 20, 50, 7);
+  makeStars(document.getElementById('innerRing'), 12, 32, 5);
+})();
+
+/* ══ LOADER — 10 sec then reveal ══ */
+const loaderEl = document.getElementById('loader');
+const siteEl   = document.getElementById('site');
+const barEl    = document.getElementById('loader-bar');
+let revealed   = false;
+
+const LOADER_DUR = 10000;
+
+function revealSite(){
+  if(revealed) return; revealed=true;
+  loaderEl.classList.add('out');
+  siteEl.classList.add('in');
+  setTimeout(()=>loaderEl.style.display='none', 1500);
+}
+
+/* Animate bar over 10s */
+let p=0;
+const iv=setInterval(()=>{
+  p+=100/100;
+  barEl.style.width=Math.min(p,100)+'%';
+  if(p>=100){ clearInterval(iv); setTimeout(revealSite,200); }
+}, LOADER_DUR/100);
+
+/* ══ CURSOR ══ */
+const curEl   = document.getElementById('cursor');
+const trailEl = document.getElementById('cursor-trail');
+let rawX=window.innerWidth/2, rawY=window.innerHeight/2;
+let trailX=rawX, trailY=rawY;
+
+document.addEventListener('mousemove', e=>{
+  rawX=e.clientX; rawY=e.clientY;
+  curEl.style.left=rawX+'px'; curEl.style.top=rawY+'px';
+});
+(function trl(){
+  trailX+=(rawX-trailX)*.12;
+  trailY+=(rawY-trailY)*.12;
+  trailEl.style.left=trailX+'px'; trailEl.style.top=trailY+'px';
+  requestAnimationFrame(trl);
+})();
+
+/* ══ THREE.JS ══ */
+const W=()=>window.innerWidth, H=()=>window.innerHeight;
+
+const scene   = new THREE.Scene();
+scene.background = new THREE.Color(0xffffff);
+
+const camera  = new THREE.PerspectiveCamera(52, W()/H(), 1, 5000);
+camera.position.set(0,0,600);
+
+const renderer= new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),H());
+document.getElementById('cvs-wrap').appendChild(renderer.domElement);
+
+const raycaster = new THREE.Raycaster();
+const pointer   = new THREE.Vector2();
+
+const SRCS=[
+  'images/dt_collab.jpg','images/d-d.jpg','images/itachy01.jpg',
+  'images/poster444.jpg','images/pr3.jpg',
+  'images/H.8-1.jpg','images/H.8-2.jpg','images/H.8-4.jpg',
+  'images/H.8-5.jpg','images/H.8-7.jpg','images/H.8-8.jpg',
+  'images/t__.jpg','images/TACHYCARDIJA.jpg'
+];
+const N=SRCS.length, PLANEW=155;
+
+const SEED=Date.now()%99991;
+function sr(i,s){const v=Math.sin(SEED+i*127.1+s*311.7)*43758.5453;return v-Math.floor(v);}
+function srn(i,s){return sr(i,s)*2-1;}
+
+const meshes=[];
+const txLoader=new THREE.TextureLoader();
+
+SRCS.forEach((src,i)=>{
+  txLoader.load(src, tex=>{
+    tex.minFilter=THREE.LinearFilter; tex.generateMipmaps=false;
+    const asp=(tex.image.naturalWidth||1)/(tex.image.naturalHeight||1);
+    const geo=new THREE.PlaneGeometry(PLANEW, PLANEW/asp);
+    const mat=new THREE.MeshBasicMaterial({map:tex, side:THREE.DoubleSide, transparent:true, opacity:1});
+    const mesh=new THREE.Mesh(geo,mat);
+
+    const bx=srn(i,1)*230, by=srn(i,2)*145, bz=srn(i,3)*90;
+    const rx=srn(i,4)*.16,  ry=srn(i,5)*.22, rz=srn(i,6)*.07;
+
+    mesh.position.set(bx,by,bz);
+    mesh.rotation.set(rx,ry,rz);
+    mesh.userData={
+      basePos:    new THREE.Vector3(bx,by,bz),
+      baseRot:    {x:rx,y:ry,z:rz},
+      orbitSpeed: .00016+sr(i,7)*.0002,
+      orbitRadius:7+sr(i,8)*13,
+      orbitPhase: sr(i,9)*Math.PI*2,
+      orbitAxis:  new THREE.Vector3(srn(i,10),srn(i,11),srn(i,12)).normalize(),
+      spiralPos:  new THREE.Vector3(),
+      spiralRotY: 0
+    };
+    scene.add(mesh);
+    meshes.push(mesh);
+  }, undefined, err=>console.warn('img fail:',src,err));
+});
+
+/* ── Camera tween ── */
+const lookAt=new THREE.Vector3();
+let camTween=null, focused=false, curMode=3;
+
+function ease5(t){return 1-Math.pow(1-t,5);}
+function ease4io(t){return t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2;}
+
+function startCamTween(tp,tl,dur,style){
+  camTween={fp:camera.position.clone(),tp:tp.clone(),fl:lookAt.clone(),tl:tl.clone(),dur,style:style||'out',t0:performance.now()};
+}
+
+function focusMesh(m){
+  if(curMode!==3||camTween)return;
+  focused=true;
+  document.getElementById('back-btn').classList.add('show');
+  hideHint();
+  const fwd=new THREE.Vector3(0,0,1).applyEuler(m.rotation);
+  startCamTween(m.position.clone().add(fwd.multiplyScalar(240)),m.position.clone(),1.3);
+}
+function resetCamera(){
+  focused=false;
+  document.getElementById('back-btn').classList.remove('show');
+  startCamTween(new THREE.Vector3(0,0,600),new THREE.Vector3(),1.2,'inout');
+}
+
+/* ── Orbit / Zoom ── */
+let dragging=false, mdPos={x:0,y:0};
+function orbitCam(dx,dy){
+  if(camTween)return;
+  const sph=new THREE.Spherical().setFromVector3(camera.position.clone().sub(lookAt));
+  sph.theta-=dx*.005;
+  sph.phi=Math.max(.05,Math.min(Math.PI-.05,sph.phi-dy*.005));
+  camera.position.copy(new THREE.Vector3().setFromSpherical(sph).add(lookAt));
+}
+function zoomCam(d){
+  if(camTween)return;
+  const dir=camera.position.clone().sub(lookAt).normalize();
+  const dist=Math.max(80,Math.min(1800,camera.position.distanceTo(lookAt)+d));
+  camera.position.copy(lookAt.clone().add(dir.multiplyScalar(dist)));
+}
+
+const mNorm=new THREE.Vector2();
+let gravX=0,gravY=0;
+
+document.addEventListener('mousemove',e=>{
+  mNorm.set((e.clientX/W())*2-1,-(e.clientY/H())*2+1);
+  pointer.set((e.clientX/W())*2-1,-(e.clientY/H())*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  curEl.classList.toggle('hover', raycaster.intersectObjects(meshes).length>0);
+});
+
+const cvs=document.getElementById('cvs-wrap');
+cvs.addEventListener('mousedown',e=>{if(curMode!==3)return;dragging=true;mdPos={x:e.clientX,y:e.clientY};});
+window.addEventListener('mousemove',e=>{if(dragging)orbitCam(e.movementX,e.movementY);});
+window.addEventListener('mouseup',()=>dragging=false);
+cvs.addEventListener('click',e=>{
+  if(curMode!==3||Math.abs(e.clientX-mdPos.x)>6||Math.abs(e.clientY-mdPos.y)>6||camTween)return;
+  pointer.set((e.clientX/W())*2-1,-(e.clientY/H())*2+1);
+  raycaster.setFromCamera(pointer,camera);
+  const hits=raycaster.intersectObjects(meshes);
+  if(hits.length)focusMesh(hits[0].object);
+});
+cvs.addEventListener('wheel',e=>{e.preventDefault();if(curMode===3){zoomCam(e.deltaY*.6);hideHint();}},{passive:false});
+
+let lTouch=[],lPinch=0,tMoved=false;
+cvs.addEventListener('touchstart',e=>{
+  e.preventDefault();tMoved=false;
+  lTouch=Array.from(e.touches).map(t=>({x:t.clientX,y:t.clientY}));
+  if(e.touches.length===2)lPinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+},{passive:false});
+cvs.addEventListener('touchmove',e=>{
+  e.preventDefault();tMoved=true;
+  if(e.touches.length===1){orbitCam(e.touches[0].clientX-lTouch[0].x,e.touches[0].clientY-lTouch[0].y);lTouch=[{x:e.touches[0].clientX,y:e.touches[0].clientY}];}
+  else if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);zoomCam((lPinch-d)*2.5);lPinch=d;}
+},{passive:false});
+cvs.addEventListener('touchend',e=>{
+  e.preventDefault();
+  if(!tMoved&&e.changedTouches.length===1&&!camTween&&curMode===3){
+    const t=e.changedTouches[0];
+    pointer.set((t.clientX/W())*2-1,-(t.clientY/H())*2+1);
+    raycaster.setFromCamera(pointer,camera);
+    const hits=raycaster.intersectObjects(meshes);
+    if(hits.length)focusMesh(hits[0].object);
+  }
+},{passive:false});
+
+/* ══ SPIRAL ══ */
+function computeSpiral(){
+  const totalH=700, radius=200, turns=2.2;
+  meshes.forEach((m,i)=>{
+    const t=i/(N-1||1);
+    const angle=t*turns*Math.PI*2;
+    m.userData.spiralPos.set(Math.cos(angle)*radius, -totalH/2+t*totalH, Math.sin(angle)*radius);
+    m.userData.spiralRotY=-angle;
+  });
+}
+
+/* Mesh transition tweens */
+let meshTweens=[];
+function animMeshesTo(dur){
+  meshTweens=meshes.map((m,i)=>({
+    m, fp:m.position.clone(), tp:m.userData.spiralPos.clone(),
+    fry:m.rotation.y, try_:m.userData.spiralRotY,
+    t0:performance.now()+i*55, dur
+  }));
+}
+
+/* ══ RENDER LOOP ══ */
+let floatT=0, spiralT=0;
+
+function tick(now){
+  requestAnimationFrame(tick);
+  floatT+=.003;
+  gravX+=(mNorm.x*.5-gravX)*.04;
+  gravY+=(mNorm.y*.5-gravY)*.04;
+
+  if(curMode===3){
+    meshes.forEach((m,i)=>{
+      const ud=m.userData;
+      const t=floatT*ud.orbitSpeed*900;
+      const d=ud.orbitAxis.clone().multiplyScalar(Math.sin(t+ud.orbitPhase)*ud.orbitRadius);
+      m.position.set(ud.basePos.x+d.x+gravX*18, ud.basePos.y+d.y+gravY*14, ud.basePos.z+d.z);
+      m.rotation.x=ud.baseRot.x+Math.sin(floatT*.55+i*1.3)*.012;
+      m.rotation.y=ud.baseRot.y+Math.cos(floatT*.45+i*.9)*.015;
+    });
+  } else if(curMode===2 && meshTweens.length===0){
+    spiralT+=.0018;
+    meshes.forEach((m,i)=>{
+      const sp=m.userData.spiralPos;
+      const a=spiralT;
+      m.position.set(
+        sp.x*Math.cos(a)-sp.z*Math.sin(a),
+        sp.y+Math.sin(floatT*.3+i*.5)*3,
+        sp.x*Math.sin(a)+sp.z*Math.cos(a)
+      );
+      m.rotation.y=m.userData.spiralRotY-a;
+      m.rotation.x=Math.sin(floatT*.4+i*.7)*.008;
+    });
+  }
+
+  /* Mesh tweens */
+  meshTweens.forEach(tw=>{
+    if(now<tw.t0)return;
+    const p=Math.min((now-tw.t0)/tw.dur,1), e=ease5(p);
+    tw.m.position.lerpVectors(tw.fp,tw.tp,e);
+    tw.m.rotation.y=tw.fry+(tw.try_-tw.fry)*e;
+  });
+  if(meshTweens.length) meshTweens=meshTweens.filter(tw=>now<tw.t0+tw.dur+50);
+
+  if(camTween){
+    const p=Math.min((now-camTween.t0)/(camTween.dur*1000),1);
+    const e=camTween.style==='inout'?ease4io(p):ease5(p);
+    camera.position.lerpVectors(camTween.fp,camTween.tp,e);
+    lookAt.lerpVectors(camTween.fl,camTween.tl,e);
+    if(p>=1)camTween=null;
+  }
+
+  camera.lookAt(lookAt);
+  renderer.render(scene,camera);
+}
+requestAnimationFrame(tick);
+
+window.addEventListener('resize',()=>{
+  camera.aspect=W()/H(); camera.updateProjectionMatrix(); renderer.setSize(W(),H());
+});
+
+/* ══ MODES ══ */
+function setMode(m){
+  closeSortPopup();
+  if(m===3){window.location.reload();return;}
+  curMode=m;
+  document.querySelectorAll('.sopt').forEach((el,i)=>el.classList.toggle('active',i+1===m));
+
+  if(m===1){
+    document.getElementById('scroll-mode').classList.add('active');
+    buildScroll();
+  } else if(m===2){
+    document.getElementById('scroll-mode').classList.remove('active');
+    computeSpiral(); spiralT=0; meshTweens=[];
+    animMeshesTo(1200);
+    setTimeout(()=>startCamTween(new THREE.Vector3(0,0,1100),new THREE.Vector3(),1.4,'inout'),400);
+  }
+}
+
+function buildScroll(){
+  const inn=document.getElementById('scroll-inner');
+  inn.innerHTML=''; document.getElementById('scroll-mode').scrollTop=0;
+  SRCS.forEach((src,i)=>{
+    const img=document.createElement('img'); img.src=src; img.className='si';
+    inn.appendChild(img);
+    if(i<SRCS.length-1){const d=document.createElement('div');d.className='sdiv';inn.appendChild(d);}
+    setTimeout(()=>img.classList.add('v'),80+i*100);
+  });
+}
+
+/* ══ UI ══ */
+function toggleSort(e){e.stopPropagation();document.getElementById('sort-popup').classList.toggle('open');}
+function closeSortPopup(){document.getElementById('sort-popup').classList.remove('open');}
+function toggleFAQ(e){e.stopPropagation();document.getElementById('faq-bd').classList.toggle('open');}
+function closeFAQ(){document.getElementById('faq-bd').classList.remove('open');}
+document.addEventListener('click',()=>closeSortPopup());
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFAQ();closeSortPopup();if(focused)resetCamera();}});
+
+let hintGone=false;
+function hideHint(){if(hintGone)return;hintGone=true;document.getElementById('hint').classList.add('gone');}
+cvs.addEventListener('mousedown',hideHint,{once:true});
+cvs.addEventListener('wheel',hideHint,{once:true});
+setTimeout(hideHint,7000);
+</script>
+</body>
+</html>
