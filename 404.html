@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 — @тахикардия</title>
+  <link rel="icon" href="icons.png" type="image/png">
+  <style>
+    @font-face { font-family:'AN'; src:url('Arial_Narrow.ttf') format('truetype'); font-display:swap; }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+    html, body, * { cursor:none !important; }
+    html, body {
+      width:100%; height:100%; overflow:hidden;
+      background:#000;
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      -webkit-font-smoothing:antialiased;
+      user-select:none;
+    }
+
+    /* ── CURSOR ── */
+    #cursor {
+      position:fixed; pointer-events:none; z-index:9000;
+      width:6px; height:6px; background:#111; border-radius:50%;
+      transform:translate(-50%,-50%); will-change:left,top;
+    }
+    #cursor-trail {
+      position:fixed; pointer-events:none; z-index:8999;
+      width:34px; height:34px; border-radius:50%;
+      border:1px solid rgba(17,17,17,.1);
+      transform:translate(-50%,-50%); will-change:left,top;
+    }
+
+    /* ── SCENE ── */
+    #scene {
+      position:fixed; inset:0;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:32px;
+      background:#000;
+    }
+
+    /* Stars ring (same as loader) */
+    #ring-wrap  { position:relative; width:110px; height:110px; }
+    .ring-layer { position:absolute; inset:0; animation:spinL 9s linear infinite; }
+    .ring-layer.rev { animation:spinR 14s linear infinite; }
+    @keyframes spinL { to { transform:rotate(360deg); } }
+    @keyframes spinR { to { transform:rotate(-360deg); } }
+    .sd {
+      position:absolute; background:#cc0000;
+      clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+    }
+    #center-dot {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      width:5px; height:5px; background:#cc0000; border-radius:50%;
+      animation:dotP 2s ease-in-out infinite;
+    }
+    @keyframes dotP {
+      0%,100%{opacity:.3;transform:translate(-50%,-50%) scale(1)}
+      50%     {opacity:1; transform:translate(-50%,-50%) scale(2.5)}
+    }
+
+    #code {
+      font-size:clamp(52px,10vw,90px);
+      letter-spacing:16px;
+      color:rgba(255,255,255,.06);
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      line-height:1;
+    }
+
+    #msg {
+      font-size:10px; letter-spacing:4px; color:rgba(255,255,255,.2);
+      text-transform:uppercase; text-align:center; line-height:2;
+    }
+
+    #go-back {
+      font-family:'AN','Arial Narrow',Arial,sans-serif;
+      font-size:10px; letter-spacing:3px; color:rgba(255,255,255,.35);
+      text-decoration:none; text-transform:uppercase;
+      background:none; border:none; padding:8px 0;
+      transition:color .2s;
+    }
+    #go-back:hover { color:rgba(255,255,255,.8); }
+
+    #footer-404 {
+      position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+      font-size:9px; letter-spacing:3px; color:rgba(255,255,255,.12);
+      text-transform:lowercase; white-space:nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="cursor"></div>
+  <div id="cursor-trail"></div>
+
+  <div id="scene">
+    <div id="ring-wrap">
+      <div id="center-dot"></div>
+      <div class="ring-layer"     id="outerRing"></div>
+      <div class="ring-layer rev" id="innerRing"></div>
+    </div>
+
+    <div id="code">404</div>
+
+    <div id="msg">страница не найдена<br>page not found</div>
+
+    <a id="go-back" href="index.html">← вернуться / back</a>
+  </div>
+
+  <div id="footer-404">@тахикардия</div>
+
+  <script>
+    /* Stars */
+    (function(){
+      function make(el,N,R,sz){
+        const f=document.createDocumentFragment();
+        for(let i=0;i<N;i++){
+          const a=(i/N)*Math.PI*2-Math.PI/2;
+          const s=document.createElement('div'); s.className='sd';
+          s.style.cssText=`width:${sz}px;height:${sz}px;left:${55+R*Math.cos(a)-sz/2}px;top:${55+R*Math.sin(a)-sz/2}px`;
+          f.appendChild(s);
+        }
+        el.appendChild(f);
+      }
+      make(document.getElementById('outerRing'),20,50,7);
+      make(document.getElementById('innerRing'),12,32,5);
+    })();
+
+    /* Cursor */
+    const curEl  =document.getElementById('cursor');
+    const trailEl=document.getElementById('cursor-trail');
+    let rawX=window.innerWidth/2,rawY=window.innerHeight/2,trX=rawX,trY=rawY;
+    document.addEventListener('mousemove',e=>{
+      rawX=e.clientX; rawY=e.clientY;
+      curEl.style.left=rawX+'px'; curEl.style.top=rawY+'px';
+    });
+    (function trl(){
+      trX+=(rawX-trX)*.12; trY+=(rawY-trY)*.12;
+      trailEl.style.left=trX+'px'; trailEl.style.top=trY+'px';
+      requestAnimationFrame(trl);
+    })();
+  </script>
+</body>
+</html>
